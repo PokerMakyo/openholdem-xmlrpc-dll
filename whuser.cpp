@@ -92,19 +92,19 @@ void xClientThread(void* client_data)
 	{
 		try {
 			xClient->call(serverUrl, "process_message", d->format, &call_result, d->type, d->data);
-			result = xmlrpc_c::value_int(call_result);
+			result = xmlrpc_c::value_double(call_result);
 		} catch (...) {}
 		free(d->data);
 	} else if(!strcmp(d->type, "state")) {
 		try {
 			xClient->call(serverUrl, "process_message", d->format, &call_result, d->type, *(xmlrpc_c::value_struct*)d->data);
-			result = xmlrpc_c::value_int(call_result);
+			result = xmlrpc_c::value_double(call_result);
 		} catch (...) {}
 		delete (xmlrpc_c::value_struct*) d->data;
 	} else if(!strcmp(d->type, "event")) {
 		try {
 			xClient->call(serverUrl, "process_message", d->format, &call_result, d->type, xmlrpc_c::value_nil());
-			result = xmlrpc_c::value_int(call_result);
+			result = xmlrpc_c::value_double(call_result);
 		} catch (...) {}
 	}
 	client_result = result;
