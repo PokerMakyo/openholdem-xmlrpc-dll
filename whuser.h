@@ -18,10 +18,12 @@ xmlrpc_c::serverAbyss* xServer = NULL;
 void DLL_LOAD(); // loading dll
 void DLL_UNLOAD(); // unloading dll
 
+void handle_xClient();
+
 struct holdem_player
 {
     char            m_name[16]          ;	//player name if known
-    double          m_balance           ;	//player balance 
+    double          m_balance           ;	//player balance
     double          m_currentbet        ;	//player current bet
     unsigned char   m_cards[2]          ;	//player cards
 
@@ -71,7 +73,7 @@ with a size of 1 byte. That means that for Visual C++ 4.2, a call of sizeof(bool
 yields 4, while in Visual C++ 5.0 and later, the same call yields 1. This can cause
 memory corruption problems if you have defined structure members of type bool in
 Visual C++ 4.2 and are mixing object files (OBJ) and/or DLLs built with the 4.2 and
-5.0 or later compilers. 
+5.0 or later compilers.
 
 quoted from
 ms-help://MS.VSExpressCC.v80/MS.NETFramework.v20.en/dv_vclang/html/9abed3f2-d21c-4eb4-97c5-716342e613d8.htm

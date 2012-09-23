@@ -27,6 +27,9 @@ double symbol_value;
 int chair;
 
 
+vector<string> subscribed_symbols;
+
+
 void msg(const wchar_t* m, const wchar_t* t)
 {
 		int msgboxID = MessageBox(
@@ -58,6 +61,27 @@ class getSymbol: public xmlrpc_c::method
 		}
 };
 
+class subscribe: public xmlrpc_c::method
+{
+	public:
+		subscribe() {}
+
+		void execute(xmlrpc_c::paramList const& paramList, xmlrpc_c::value* const retvalP)
+		{
+			xmlrpc_c::value_array
+			/*std::vector<xmlrpc_c::value>*/ symbols = paramList.getArray(0);
+			std::vector<xmlrpc_c::value> csymbols = symbols.vectorValueValue();
+
+			vector<string> ss;
+			for(unsigned int i=0; i<csymbols.size(); i++)
+				ss.push_back(xmlrpc_c::value_string(csymbols[i]).cvalue());
+
+			subscribed_symbols = ss;
+
+			*retvalP = xmlrpc_c::value_boolean(true);
+		}
+};
+
 void xServerThread(void* dummy)
 {
 	xmlrpc_c::registry* myRegistry = NULL;
@@ -65,6 +89,9 @@ void xServerThread(void* dummy)
 
 	xmlrpc_c::methodPtr const getSymbolP(new getSymbol);
 	myRegistry->addMethod("getSymbol", getSymbolP);
+
+	xmlrpc_c::methodPtr const subscribeP(new subscribe);
+	myRegistry->addMethod("subscribe_for_symbols", subscribeP);
 
 	xServer = new xmlrpc_c::serverAbyss(
 			*myRegistry,
@@ -101,6 +128,12 @@ void xClientThread(void* client_data)
 			result = xmlrpc_c::value_double(call_result);
 		} catch (...) {}
 		delete (xmlrpc_c::value_struct*) d->data;
+	} else if(!strcmp(d->type, "symbols")) {
+		try {
+			xClient->call(serverUrl, "process_message", d->format, &call_result, d->type, *(xmlrpc_c::value_struct*)d->data);
+			result = xmlrpc_c::value_double(call_result);
+		} catch (...) {}
+		delete (xmlrpc_c::value_struct*) d->data;
 	} else if(!strcmp(d->type, "event")) {
 		try {
 			xClient->call(serverUrl, "process_message", d->format, &call_result, d->type, xmlrpc_c::value_nil());
@@ -112,6 +145,32 @@ void xClientThread(void* client_data)
 	free(d);
 }
 
+void send_symbols()
+{
+	bool dupa;
+	map<string, xmlrpc_c::value> structData;
+
+	for(unsigned int i=0; i<subscribed_symbols.size(); i++)
+		structData.insert(
+				pair<string, xmlrpc_c::value> (
+					subscribed_symbols[i],
+					xmlrpc_c::value_double(m_pget_winholdem_symbol(0, subscribed_symbols[i].c_str(), dupa))
+					)
+				);
+
+	xmlrpc_c::value_struct* s = new xmlrpc_c::value_struct(structData);
+
+	xmlrpc_c::value result;
+
+	ClientData* cd = (ClientData*)malloc(sizeof(ClientData));
+
+	cd->format = "sS";
+	cd->type = "symbols";
+	cd->data = (void*) s;
+
+	_beginthread(xClientThread, 0, cd);
+	handle_xClient();
+}
 
 void process_query(const char* pquery)
 {
@@ -125,6 +184,7 @@ void process_query(const char* pquery)
 		cd->data = (void*) data;
 
 		_beginthread(xClientThread, 0, cd);
+		handle_xClient();
 
 	} catch(...){}
 }
@@ -180,7 +240,7 @@ void process_state(holdem_state* pstate)
 		// char            m_name[16]          ;	//player name if known
 		pair<string, xmlrpc_c::value> m_name("m_name", xmlrpc_c::value_string((pstate)->m_player[p].m_name));
 		player.insert(m_name);
-		// double          m_balance           ;	//player balance 
+		// double          m_balance           ;	//player balance
 		pair<string, xmlrpc_c::value> m_balance("m_balance", xmlrpc_c::value_double((pstate)->m_player[p].m_balance));
 		player.insert(m_balance);
 		// double          m_currentbet        ;	//player current bet
@@ -225,6 +285,7 @@ void process_state(holdem_state* pstate)
 	cd->data = (void*) s;
 
 	_beginthread(xClientThread, 0, cd);
+	handle_xClient();
 }
 
 
@@ -250,8 +311,10 @@ WHUSER_API double process_message(const char* pmessage,	const void* param)
 		process_state((holdem_state*)param);
 
 	else if (strcmp(pmessage, "query") == 0)
+	{
+		send_symbols();
 		process_query((const char*)param);
-
+	}
 	else if (strcmp(pmessage, "pfgws") == 0)
 	{
 		m_pget_winholdem_symbol = (pfgws_t)param;
@@ -266,6 +329,11 @@ WHUSER_API double process_message(const char* pmessage,	const void* param)
 	else if (strcmp(pmessage, "p_send_chat_message") == 0)
 		return 0;
 
+	return client_result;
+}
+
+void handle_xClient()
+{
 	DWORD wait_result;
 	bool dupa;
 	while(true)
@@ -282,7 +350,6 @@ WHUSER_API double process_message(const char* pmessage,	const void* param)
 			SetEvent(symbol_ready);
 		}
 	}
-	return client_result;
 }
 
 void DLL_LOAD()
@@ -301,6 +368,7 @@ void DLL_LOAD()
 	cd->data = NULL;
 
 	_beginthread(xClientThread, 0, cd);
+	handle_xClient();
 }
 
 void DLL_UNLOAD()
@@ -312,6 +380,7 @@ void DLL_UNLOAD()
 	cd->data = NULL;
 
 	_beginthread(xClientThread, 0, cd);
+	handle_xClient();
 
 	delete xClient;
 }
