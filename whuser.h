@@ -17,6 +17,7 @@ xmlrpc_c::serverAbyss* xServer = NULL;
 
 void DLL_LOAD(); // loading dll
 void DLL_UNLOAD(); // unloading dll
+void DLL_START(); // Create XMLRPC client/server
 
 void handle_xClient();
 

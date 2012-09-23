@@ -1,5 +1,6 @@
 #include <string>
 #include <string.h>
+#include <sstream>
 
 #include <xmlrpc-c/base.hpp>
 #include <xmlrpc-c/client_simple.hpp>
@@ -14,13 +15,15 @@
 
 using namespace std;
 
-string const serverUrl("http://localhost:8080/RPC2");
+string serverUrl("http://localhost:8080/RPC2");
 
 pfgws_t m_pget_winholdem_symbol = NULL;
 
 HANDLE symbol_need, symbol_ready, have_result;
 
 double client_result;
+
+int dll_listening_port = 0;
 
 string symbol_name;
 double symbol_value;
@@ -103,9 +106,12 @@ void xServerThread(void* dummy)
 	xmlrpc_c::methodPtr const subscribeP(new subscribe);
 	myRegistry->addMethod("subscribe_for_symbols", subscribeP);
 
+	if(!dll_listening_port)
+		dll_listening_port = 9091;
+
 	xServer = new xmlrpc_c::serverAbyss(
 			*myRegistry,
-			9091,              // TCP port on which to listen
+			dll_listening_port,              // TCP port on which to listen
 			"H:/xmlrpc.log"  // Log file
 			);
 	xServer->run();
@@ -342,6 +348,7 @@ WHUSER_API double process_message(const char* pmessage,	const void* param)
 	else if (strcmp(pmessage, "pfgws") == 0)
 	{
 		m_pget_winholdem_symbol = (pfgws_t)param;
+		DLL_START();
 		return 0;
 	}
 	else if (strcmp(pmessage, "phl1k") == 0)
@@ -376,11 +383,31 @@ void handle_xClient()
 	}
 }
 
+/*
+ * DLL loaded to OH.
+ */
 void DLL_LOAD()
 {
 	symbol_need = CreateEvent(NULL, FALSE, FALSE, NULL);
 	symbol_ready = CreateEvent(NULL, FALSE, FALSE, NULL);
 	have_result = CreateEvent(NULL, FALSE, FALSE, NULL);
+}
+
+/*
+ * Create XMLRPC Client and Server.
+ */
+void DLL_START()
+{
+	bool dupa;
+	dll_listening_port = m_pget_winholdem_symbol(0, "f$dll_listening_port", dupa);
+	int client_listening_port = int(m_pget_winholdem_symbol(0, "f$client_listening_port", dupa));
+
+	if(client_listening_port)
+	{
+		std::ostringstream os;
+		os << "http://localhost:" << client_listening_port << "/RPC2";
+		serverUrl = os.str();
+	}
 
 	xClient = new xmlrpc_c::clientSimple;
 	uintptr_t th = _beginthread(xServerThread, 0, NULL);
