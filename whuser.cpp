@@ -26,10 +26,11 @@ string symbol_name;
 double symbol_value;
 int chair;
 
-
 vector<string> subscribed_symbols;
 
-
+/*
+ * Show messagebox.
+ */
 void msg(const wchar_t* m, const wchar_t* t)
 {
 		int msgboxID = MessageBox(
@@ -39,6 +40,9 @@ void msg(const wchar_t* m, const wchar_t* t)
 				MB_OK);
 }
 
+/*
+ * XMLRPC getSymbol method.
+ */
 class getSymbol: public xmlrpc_c::method
 {
 	public:
@@ -61,6 +65,9 @@ class getSymbol: public xmlrpc_c::method
 		}
 };
 
+/*
+ * XMLRPC subscribe_for_symbols method.
+ */
 class subscribe: public xmlrpc_c::method
 {
 	public:
@@ -82,6 +89,9 @@ class subscribe: public xmlrpc_c::method
 		}
 };
 
+/*
+ * Thread responsible for handling OpenHoldem symbol requests.
+ */
 void xServerThread(void* dummy)
 {
 	xmlrpc_c::registry* myRegistry = NULL;
@@ -108,6 +118,9 @@ struct ClientData
 	void* data;
 };
 
+/*
+ * Thread responsible for sending information to OH.
+ */
 void xClientThread(void* client_data)
 {
 	xmlrpc_c::value call_result;
@@ -145,6 +158,9 @@ void xClientThread(void* client_data)
 	free(d);
 }
 
+/*
+ * Send subscrived symbols to client.
+ */
 void send_symbols()
 {
 	bool dupa;
@@ -172,6 +188,9 @@ void send_symbols()
 	handle_xClient();
 }
 
+/*
+ * Handler for OH query message.
+ */
 void process_query(const char* pquery)
 {
 	try {
@@ -189,6 +208,9 @@ void process_query(const char* pquery)
 	} catch(...){}
 }
 
+/*
+ * Handler for OH state message.
+ */
 void process_state(holdem_state* pstate)
 {
 	map<string, xmlrpc_c::value> structData;
@@ -288,7 +310,9 @@ void process_state(holdem_state* pstate)
 	handle_xClient();
 }
 
-
+/*
+ * Handler for OH messages.
+ */
 WHUSER_API double process_message(const char* pmessage,	const void* param)
 {
 	if (pmessage == NULL || param == NULL)
@@ -371,6 +395,9 @@ void DLL_LOAD()
 	handle_xClient();
 }
 
+/*
+ * DLL unloaded from OH.
+ */
 void DLL_UNLOAD()
 {
 	ClientData* cd = (ClientData*)malloc(sizeof(ClientData));
